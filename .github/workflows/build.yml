@@ -26,9 +26,10 @@ jobs:
 
     - name: Create Flutter Project Structure
       run: |
-        flutter create --project-name finzo temp_app
+        flutter create --project-name finzo --org com.example temp_app
         cp -r lib temp_app/
         cp pubspec.yaml temp_app/
+        cp google-services.json temp_app/android/app/
         cd temp_app
         flutter pub get
         flutter build apk --release
