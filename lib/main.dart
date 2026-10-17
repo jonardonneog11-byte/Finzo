@@ -75,8 +75,7 @@ class LoginScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
-                        globalUserName = "Itachi"; // Mock Google Name
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+                        _showGoogleLoginDialog(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white, foregroundColor: darkNavy, side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -107,6 +106,37 @@ class LoginScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showGoogleLoginDialog(BuildContext context) {
+    final TextEditingController nameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Google Sign-In'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your Google Account Name'),
+            const SizedBox(height: 16),
+            TextField(controller: nameController, decoration: const InputDecoration(hintText: 'Your Name', border: OutlineInputBorder())),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                globalUserName = nameController.text;
+                Navigator.pop(context);
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+              }
+            },
+            child: const Text('Sign In'),
+          )
+        ],
       ),
     );
   }
@@ -441,6 +471,7 @@ class ApplicationFormScreen extends StatefulWidget {
 
 class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _dobController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -463,7 +494,13 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
               const SizedBox(height: 16),
               _buildTextField('Full Name', Icons.person),
               const SizedBox(height: 16),
-              Row(children: [Expanded(child: _buildTextField('Date of Birth', Icons.cake)), const SizedBox(width: 16), Expanded(child: _buildTextField('Mobile Number', Icons.phone_android))]),
+              Row(
+                children: [
+                  Expanded(child: _buildDatePicker()),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextField('Mobile Number', Icons.phone_android)),
+                ],
+              ),
               const SizedBox(height: 16),
               _buildTextField('City / Area / Town', Icons.location_city),
               const SizedBox(height: 16),
@@ -493,6 +530,40 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDatePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Date of Birth', style: TextStyle(fontWeight: FontWeight.w600, color: darkNavy, fontSize: 14)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _dobController,
+          readOnly: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.cake, color: primaryBlue),
+            filled: true, fillColor: Colors.white, hintText: 'Select DOB',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryBlue)),
+          ),
+          onTap: () async {
+            DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: DateTime(2000),
+              firstDate: DateTime(1950),
+              lastDate: DateTime.now(),
+            );
+            if (pickedDate != null) {
+              setState(() {
+                _dobController.text = DateFormat('dd/MM/yyyy').format(pickedDate);
+              });
+            }
+          },
+          validator: (value) => value!.isEmpty ? 'Required' : null,
+        ),
+      ],
     );
   }
 
@@ -606,9 +677,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (image != null) setState(() => _paymentScreenshot = File(image.path));
   }
 
-  Future<void> _launchUpiApp(String scheme) async {
-    final Uri uri = Uri.parse('upi://pay?pa=$upiId&pn=$payeeName&am=$fee&cu=INR&tn=Finzo%20Verification');
-    if (await canLaunchUrl(uri)) { await launchUrl(uri); } else { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$scheme is not installed.'))); }
+  Future<void> _launchUpiApp(String appName) async {
+    String scheme = 'upi://pay?pa=$upiId&pn=$payeeName&am=$fee&cu=INR&tn=Finzo%20Verification';
+    if (appName == 'PhonePe') scheme = 'phonepe://pay?pa=$upiId&pn=$payeeName&am=$fee&cu=INR&tn=Finzo%20Verification';
+    if (appName == 'Google Pay') scheme = 'tez://upi/pay?pa=$upiId&pn=$payeeName&am=$fee&cu=INR&tn=Finzo%20Verification';
+    
+    final Uri uri = Uri.parse(scheme);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        throw 'error';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$appName is not installed. Please scan the QR Code above instead.')));
+      }
+    }
   }
 
   @override
