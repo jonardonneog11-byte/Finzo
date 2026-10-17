@@ -24,12 +24,17 @@ jobs:
         flutter-version: '3.19.0'
         channel: 'stable'
 
-    - name: Create Flutter Project Structure
+    - name: Create Flutter Project & Setup Firebase
       run: |
         flutter create --project-name finzo --org com.example temp_app
         cp -r lib temp_app/
         cp pubspec.yaml temp_app/
+        
+        # Firebase setup
         cp google-services.json temp_app/android/app/
+        sed -i 's/apply plugin: '\''com.android.application'\''/apply plugin: '\''com.android.application'\''\napply plugin: '\''com.google.gms.google-services'\''/' temp_app/android/app/build.gradle
+        sed -i 's/dependencies {/dependencies {\n    classpath '\''com.google.gms:google-services:4.4.0'\''/' temp_app/android/build.gradle
+        
         cd temp_app
         flutter pub get
         flutter build apk --release
