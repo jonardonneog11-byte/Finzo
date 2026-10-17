@@ -8,9 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 import 'dart:math';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+void main() {
   runApp(const FinzoApp());
 }
 
@@ -57,18 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      
+
       setState(() {
         globalUserName = googleUser.displayName ?? "User";
         _isLoading = false;
@@ -338,7 +332,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
               await GoogleSignIn().signOut();
               if (context.mounted) {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
