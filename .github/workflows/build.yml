@@ -24,21 +24,11 @@ jobs:
         flutter-version: '3.19.0'
         channel: 'stable'
 
-    - name: Create Flutter Project & Setup Firebase
+    - name: Create Flutter Project
       run: |
         flutter create --project-name finzo --org com.example temp_app
         cp -r lib temp_app/
         cp pubspec.yaml temp_app/
-        
-        # Copy google-services.json to android/app
-        cp google-services.json temp_app/android/app/
-        
-        # Add google-services plugin to settings.gradle
-        sed -i 's/id "com.android.application" version "7.3.0" apply false/id "com.android.application" version "7.3.0" apply false\n    id "com.google.gms.google-services" version "4.4.0" apply false/' temp_app/android/settings.gradle
-        
-        # Add plugin to app/build.gradle
-        sed -i 's/apply plugin: "com.android.application"/apply plugin: "com.android.application"\napply plugin: "com.google.gms.google-services"/' temp_app/android/app/build.gradle
-        
         cd temp_app
         flutter pub get
         flutter build apk --release
