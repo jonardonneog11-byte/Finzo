@@ -4,10 +4,15 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 import 'dart:math';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const FinzoApp());
 }
 
@@ -41,8 +46,46 @@ List<Map<String, dynamic>> globalActiveLoans = [];
 List<Map<String, dynamic>> globalClosedLoans = [];
 
 // ================= LOGIN SCREEN =================
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      setState(() {
+        globalUserName = googleUser.displayName ?? "User";
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,21 +117,21 @@ class LoginScreen extends StatelessWidget {
                     const Text('Sign in securely with your Google account to check loan eligibility and apply instantly.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: textGrey, height: 1.5)),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () {
-                        _showGoogleLoginDialog(context);
-                      },
+                      onPressed: _isLoading ? null : _signInWithGoogle,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white, foregroundColor: darkNavy, side: const BorderSide(color: Color(0xFFE2E8F0)),
                         minimumSize: const Size(double.infinity, 56), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.g_mobiledata, color: Colors.blue, size: 30),
-                          const SizedBox(width: 12),
-                          Text('Continue with Google', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
-                        ],
-                      ),
+                      child: _isLoading 
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.g_mobiledata, color: Colors.blue, size: 30),
+                              const SizedBox(width: 12),
+                              Text('Continue with Google', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
+                            ],
+                          ),
                     ),
                   ],
                 ),
@@ -106,37 +149,6 @@ class LoginScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showGoogleLoginDialog(BuildContext context) {
-    final TextEditingController nameController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Google Sign-In'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter your Google Account Name'),
-            const SizedBox(height: 16),
-            TextField(controller: nameController, decoration: const InputDecoration(hintText: 'Your Name', border: OutlineInputBorder())),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty) {
-                globalUserName = nameController.text;
-                Navigator.pop(context);
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-              }
-            },
-            child: const Text('Sign In'),
-          )
-        ],
       ),
     );
   }
@@ -324,10 +336,16 @@ class _HomeScreenState extends State<HomeScreen> {
           const CircleAvatar(radius: 40, backgroundColor: primaryBlue, child: Icon(Icons.person, size: 40, color: Colors.white)),
           const SizedBox(height: 16),
           Text(globalUserName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkNavy)),
-          const Text('user@gmail.com', style: TextStyle(color: textGrey)),
+          const Text('Signed in with Google', style: TextStyle(color: textGrey)),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())), 
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              await GoogleSignIn().signOut();
+              if (context.mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+              }
+            }, 
             child: const Text("Logout")
           )
         ],
