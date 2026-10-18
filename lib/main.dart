@@ -4,18 +4,28 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 import 'dart:math';
 
-void main() {
-  runApp(const FinzoApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+  final userName = prefs.getString('userName') ?? "User";
+
+  runApp(FinzoApp(isLoggedIn: isLoggedIn, initialName: userName));
 }
 
 class FinzoApp extends StatelessWidget {
-  const FinzoApp({super.key});
+  final bool isLoggedIn;
+  final String initialName;
+  const FinzoApp({super.key, required this.isLoggedIn, required this.initialName});
 
   @override
   Widget build(BuildContext context) {
+    globalUserName = initialName;
     return MaterialApp(
       title: 'Finzo',
       debugShowCheckedModeBanner: false,
@@ -24,7 +34,7 @@ class FinzoApp extends StatelessWidget {
         textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
       ),
-      home: const LoginScreen(),
+      home: isLoggedIn ? const HomeScreen() : const LoginScreen(),
     );
   }
 }
@@ -53,17 +63,36 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    
-    // Bypassing Google SHA-1 check for now (Temporary Guest Login)
-    await Future.delayed(const Duration(seconds: 1)); 
-    
-    setState(() {
-      globalUserName = "Ujjal"; // Yahan apna naam likh sakte ho
-      _isLoading = false;
-    });
-    
-    if (mounted) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '1064833237572-tu417bvrqafvn4kmcqmv8145if150ctb.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+      );
+      
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('userName', googleUser.displayName ?? "User");
+
+      setState(() {
+        globalUserName = googleUser.displayName ?? "User";
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+      }
     }
   }
 
@@ -316,10 +345,12 @@ class _HomeScreenState extends State<HomeScreen> {
           const CircleAvatar(radius: 40, backgroundColor: primaryBlue, child: Icon(Icons.person, size: 40, color: Colors.white)),
           const SizedBox(height: 16),
           Text(globalUserName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkNavy)),
-          const Text('Signed in as Guest', style: TextStyle(color: textGrey)),
+          const Text('Verified User', style: TextStyle(color: textGrey)),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
               if (context.mounted) {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
               }
