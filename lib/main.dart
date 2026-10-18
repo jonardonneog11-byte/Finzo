@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -13,7 +12,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-  final userName = prefs.getString('userName') ?? "User";
+  final userName = prefs.getString('userName') ?? "Sir"; // Yahan "Sir" set kar diya hai
 
   runApp(FinzoApp(isLoggedIn: isLoggedIn, initialName: userName));
 }
@@ -46,7 +45,7 @@ const Color lightBg = Color(0xFFF5F7FA);
 const Color textGrey = Color(0xFF64748B);
 
 // GLOBAL STATE
-String globalUserName = "User";
+String globalUserName = "Sir";
 List<Map<String, dynamic>> globalActiveLoans = [];
 List<Map<String, dynamic>> globalClosedLoans = [];
 
@@ -61,38 +60,23 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
-  Future<void> _signInWithGoogle() async {
+  Future<void> _loginDirectly() async {
     setState(() => _isLoading = true);
-    try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: '1064833237572-tu417bvrqafvn4kmcqmv8145if150ctb.apps.googleusercontent.com',
-        scopes: ['email', 'profile'],
-      );
-      
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+    
+    // Simple delay to show loading
+    await Future.delayed(const Duration(milliseconds: 800)); 
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('userName', googleUser.displayName ?? "User");
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    await prefs.setString('userName', "Sir"); // Yahan "Sir" set karo
 
-      setState(() {
-        globalUserName = googleUser.displayName ?? "User";
-        _isLoading = false;
-      });
-      
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
-      }
+    setState(() {
+      globalUserName = "Sir";
+      _isLoading = false;
+    });
+    
+    if (mounted) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     }
   }
 
@@ -123,22 +107,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text('Welcome to Finzo', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkNavy)),
                     const SizedBox(height: 12),
-                    const Text('Sign in securely with your Google account to check loan eligibility and apply instantly.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: textGrey, height: 1.5)),
+                    const Text('Sign in securely to check loan eligibility and apply instantly.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: textGrey, height: 1.5)),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _signInWithGoogle,
+                      onPressed: _isLoading ? null : _loginDirectly,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white, foregroundColor: darkNavy, side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        backgroundColor: primaryBlue, foregroundColor: Colors.white, 
                         minimumSize: const Size(double.infinity, 56), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isLoading 
-                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.g_mobiledata, color: Colors.blue, size: 30),
+                              const Icon(Icons.login, color: Colors.white, size: 24),
                               const SizedBox(width: 12),
-                              Text('Continue with Google', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
+                              Text('Continue to App', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
                             ],
                           ),
                     ),
