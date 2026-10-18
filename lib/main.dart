@@ -4,7 +4,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -54,28 +53,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      setState(() {
-        globalUserName = googleUser.displayName ?? "User";
-        _isLoading = false;
-      });
-      
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
-      }
+    
+    // Bypassing Google SHA-1 check for now (Temporary Guest Login)
+    await Future.delayed(const Duration(seconds: 1)); 
+    
+    setState(() {
+      globalUserName = "Ujjal"; // Yahan apna naam likh sakte ho
+      _isLoading = false;
+    });
+    
+    if (mounted) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     }
   }
 
@@ -328,11 +316,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const CircleAvatar(radius: 40, backgroundColor: primaryBlue, child: Icon(Icons.person, size: 40, color: Colors.white)),
           const SizedBox(height: 16),
           Text(globalUserName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkNavy)),
-          const Text('Signed in with Google', style: TextStyle(color: textGrey)),
+          const Text('Signed in as Guest', style: TextStyle(color: textGrey)),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () async {
-              await GoogleSignIn().signOut();
+            onPressed: () {
               if (context.mounted) {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
               }
